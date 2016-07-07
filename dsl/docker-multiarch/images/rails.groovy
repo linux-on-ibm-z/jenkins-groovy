@@ -9,7 +9,7 @@ for (arch in multiarch.allArches()) {
 		label(meta.label)
 		scm {
 			git {
-				remote { url('https://github.com/docker-library/drupal.git') }
+				remote { url('https://github.com/docker-library/rails.git') }
 				branches('*/master')
 				extensions {
 					cleanAfterCheckout()
@@ -23,26 +23,19 @@ for (arch in multiarch.allArches()) {
 		wrappers { colorizeOutput() }
 		steps {
 			shell(multiarch.templateArgs(meta, ['dpkgArch']) + '''
-sed -i "s!^FROM !FROM $prefix/!" */*/Dockerfile
+sed -i "s!^FROM !FROM $prefix/!" Dockerfile */Dockerfile
 
 case "$dpkgArch" in
 	s390x)
-		sed -i "s/libpq-dev/libpq-dev libpcre3-dev/g" */*/Dockerfile	
+		sed -i "s/nodejs//g" Dockerfile */Dockerfile	
 esac
 
 latest="$(./generate-stackbrew-library.sh | awk '$1 == "latest:" { print $3; exit }')"
+docker build -t "$repo" .
+docker build -t "$repo-onbuild" onbuild/
+docker tag -f "$repo" "$repo"
+docker tag -f "$repo-onbuild" "$repo-onbuild"
 
-for v in */; do
-	v="${v%/}"
-	docker build -t "$repo:$v-apache" "$v/apache"
-	docker build -t "$repo:$v-fpm" "$v/fpm"
-	docker tag -f "$repo:$v-apache" "$repo:$v"
-	if [ "$v" = "$latest" ]; then
-		docker tag -f "$repo:$v-apache" "$repo:apache"
-		docker tag -f "$repo:$v-fpm" "$repo:fpm"
-		docker tag -f "$repo:$v" "$repo"
-	fi
-done
 ''' + multiarch.templatePush(meta))
 		}
 	}
